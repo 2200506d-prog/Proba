@@ -10,7 +10,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #667eea 0%, #49b40b 100%);
+    background: linear-gradient(135deg, 0000ff  0%, 0000ff  100%);
     font-family: Arial, sans-serif;
 }
 
@@ -24,3 +24,4 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     letter-spacing: 2px;
 }
+
