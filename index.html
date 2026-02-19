@@ -1,17 +1,162 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wendy</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CFE · Calculadora de consumo (PDF)</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+
+  <!-- Tesseract.js (OCR) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1 id="nombre"> Wendy Belen Garcia segovia</h1>
-        <h2 >Probabilidad y estadistica</h2>
-    </div>
-    <script src="script.js"></script>
+  <main class="app">
+    <header class="top">
+      <div>
+        <h1>CFE · Consumo desde tu recibo (PDF)</h1>
+        <p class="sub">
+          Sube tu recibo CFE en PDF y detecto <strong>kWh</strong>, <strong>periodo</strong>, <strong>tarifa</strong> y
+          (si aparece) <strong>lectura actual/anterior</strong>.
+        </p>
+      </div>
+
+      <div class="badge" title="Estado">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Listo</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <div class="uploader">
+          <label class="dropzone" id="dropzone">
+            <input id="pdfInput" type="file" accept="application/pdf" hidden />
+            <div class="dz-content">
+              <div class="icon">⬆️</div>
+              <div>
+                <div class="dz-title">Arrastra tu PDF aquí</div>
+                <div class="dz-sub">o haz click para elegir archivo</div>
+              </div>
+            </div>
+            <div class="dz-meta" id="fileMeta">Sin archivo</div>
+          </label>
+
+          <div class="actions">
+            <button class="btn" id="analyzeBtn" disabled>Analizar</button>
+            <button class="btn ghost" id="ocrBtn" disabled>Forzar OCR</button>
+            <button class="btn ghost" id="clearBtn" disabled>Limpiar</button>
+          </div>
+
+          <div class="hint">
+            <span class="pill">Local</span>
+            <span class="hint-text">Todo se procesa en tu navegador.</span>
+          </div>
+
+          <div class="hint">
+            <span class="pill">CFE</span>
+            <span class="hint-text">Heurísticas optimizadas para recibos CFE (pero sirve para otros).</span>
+          </div>
+        </div>
+
+        <div class="results">
+          <div class="result-card">
+            <div class="result-head">
+              <div>
+                <div class="result-label">Consumo</div>
+                <div class="result-value">
+                  <span id="kwhValue">—</span>
+                  <span class="unit">kWh</span>
+                </div>
+              </div>
+              <div class="confidence">
+                <div class="muted small">Confianza</div>
+                <div class="bar"><div class="fill" id="confFill"></div></div>
+                <div class="small" id="confText">—</div>
+              </div>
+            </div>
+
+            <div class="kv">
+              <div class="kv-item">
+                <div class="kv-key">Periodo</div>
+                <div class="kv-val" id="periodValue">—</div>
+              </div>
+              <div class="kv-item">
+                <div class="kv-key">Tarifa</div>
+                <div class="kv-val" id="tariffValue">—</div>
+              </div>
+              <div class="kv-item">
+                <div class="kv-key">Lectura anterior</div>
+                <div class="kv-val" id="prevReadValue">—</div>
+              </div>
+              <div class="kv-item">
+                <div class="kv-key">Lectura actual</div>
+                <div class="kv-val" id="currReadValue">—</div>
+              </div>
+              <div class="kv-item">
+                <div class="kv-key">Método</div>
+                <div class="kv-val" id="methodValue">—</div>
+              </div>
+            </div>
+
+            <details class="details">
+              <summary>Ver diagnóstico</summary>
+              <div class="details-body">
+                <div class="muted small">Candidatos (líneas relevantes):</div>
+                <pre id="candidatesBox" class="codebox">—</pre>
+
+                <div class="muted small">Texto extraído (primeros 2500 caracteres):</div>
+                <pre id="extractedBox" class="codebox">—</pre>
+
+                <div class="muted small">OCR (primeros 2500 caracteres):</div>
+                <pre id="ocrBox" class="codebox">—</pre>
+              </div>
+            </details>
+          </div>
+
+          <div class="result-card">
+            <div class="result-label">Ajuste manual (si quieres)</div>
+            <div class="manual">
+              <label class="field">
+                <span>kWh</span>
+                <input id="manualKwh" type="number" inputmode="decimal" placeholder="Ej. 245" />
+              </label>
+              <button class="btn subtle" id="applyManualBtn">Aplicar</button>
+            </div>
+            <p class="muted small">
+              Si el PDF está escaneado o el formato no coincide, usa OCR o ajusta manualmente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Vista previa</h2>
+        <p class="muted">Renderizo la primera página para confirmar que es el recibo correcto.</p>
+      </div>
+      <div class="preview">
+        <canvas id="pdfCanvas"></canvas>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="muted small" id="progressText">—</div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span class="muted small">
+        Tip: si el recibo es escaneado, el botón <strong>Forzar OCR</strong> suele resolverlo.
+      </span>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
-
