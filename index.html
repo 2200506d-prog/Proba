@@ -32,8 +32,10 @@
     <section class="card">
       <div class="grid">
         <div class="uploader">
-          <label class="dropzone" id="dropzone">
-            <input id="pdfInput" type="file" accept="application/pdf" hidden />
+          <!-- input fuera del dropzone y oculto por CSS (robusto) -->
+          <input id="pdfInput" class="file-input" type="file" accept="application/pdf" />
+
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Subir recibo PDF">
             <div class="dz-content">
               <div class="icon">⬆️</div>
               <div>
@@ -42,7 +44,7 @@
               </div>
             </div>
             <div class="dz-meta" id="fileMeta">Sin archivo</div>
-          </label>
+          </div>
 
           <div class="actions">
             <button class="btn" id="analyzeBtn" disabled>Analizar</button>
