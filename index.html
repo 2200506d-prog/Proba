@@ -1,211 +1,185 @@
- <!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CFE · Analizador de Recibo</title>
+    <title>CFE · Analizador de Alta Precisión</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
         :root { 
-            --good: #22c55e; 
-            --warn: #f59e0b; 
-            --bad: #ef4444; 
             --primary: #2563eb;
+            --success: #22c55e;
+            --text-main: #1e293b;
+            --bg-body: #f1f5f9;
         }
         
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f0f2f5; 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg-body); 
             margin: 0; 
             padding: 20px; 
-            color: #333;
+            color: var(--text-main);
         }
         
-        .app { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         
         .card { 
             background: white; 
             padding: 25px; 
             border-radius: 12px; 
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
             margin-bottom: 20px; 
         }
 
-        h1 { margin-top: 0; color: #1a1a1a; font-size: 1.5rem; }
-        
         .dropzone { 
             border: 2px dashed #cbd5e1; 
             padding: 40px; 
             text-align: center; 
-            border-radius: 8px; 
+            border-radius: 10px; 
             cursor: pointer; 
-            transition: all 0.3s;
             background: #f8fafc;
+            transition: 0.3s;
         }
         
-        .dropzone:hover { 
-            border-color: var(--primary); 
-            background: #eff6ff; 
-        }
+        .dropzone:hover { border-color: var(--primary); background: #eff6ff; }
 
-        .hidden { display: none; }
+        .btn-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
         
-        .grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 20px; 
-        }
-        
-        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
-
         .btn { 
             padding: 12px 24px; 
             border: none; 
             border-radius: 6px; 
             cursor: pointer; 
-            font-weight: 600; 
-            transition: opacity 0.2s;
+            font-weight: bold; 
+            font-size: 14px;
         }
         
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-ghost { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .btn-main { background: var(--primary); color: white; }
+        .btn-alt { background: #64748b; color: white; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .progress-container { margin-top: 20px; }
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1.2fr; 
+            gap: 20px; 
+        }
+        
+        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
+
+        /* Estilos de tabla de resultados */
+        .res-table { width: 100%; border-collapse: collapse; }
+        .res-table td { padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .label { color: #64748b; font-size: 0.9rem; }
+        .value { text-align: right; font-weight: 800; font-size: 1.2rem; }
+        .highlight { color: var(--primary); font-size: 1.6rem; }
+
         .progress-bar { 
             background: #e2e8f0; 
-            height: 8px; 
-            border-radius: 4px; 
+            height: 10px; 
+            border-radius: 5px; 
             overflow: hidden; 
+            margin-top: 10px;
         }
         
-        #progressFill { 
-            background: var(--good); 
-            width: 0%; 
-            height: 100%; 
-            transition: width 0.4s ease; 
-        }
-
-        .result-item { 
-            padding: 12px 0; 
-            border-bottom: 1px solid #f1f5f9; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-        }
-        
-        .result-label { color: #64748b; font-size: 0.9rem; }
-        .result-value { font-weight: 700; font-size: 1.1rem; color: #1e293b; }
-        .highlight { color: var(--primary); font-size: 1.4rem; }
+        #progressFill { background: var(--success); width: 0%; height: 100%; transition: 0.5s; }
 
         #pdfCanvas { 
             width: 100%; 
-            height: auto; 
-            border: 1px solid #e2e8f0; 
-            border-radius: 4px; 
-            margin-top: 10px;
+            border-radius: 8px; 
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
         }
 
-        pre { 
-            background: #1e293b; 
-            color: #cbd5e1; 
-            padding: 15px; 
-            border-radius: 6px; 
-            font-size: 11px; 
-            white-space: pre-wrap; 
-            max-height: 200px; 
-            overflow-y: auto; 
-        }
+        .hidden { display: none; }
         
-        details summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+        pre { 
+            background: #0f172a; 
+            color: #94a3b8; 
+            padding: 15px; 
+            border-radius: 8px; 
+            font-size: 11px; 
+            overflow-x: auto; 
+            max-height: 200px;
+        }
     </style>
 </head>
 <body>
 
-<main class="app">
-    <section class="card">
-        <h1>CFE · Analizador de Recibo</h1>
-        <p style="color: #64748b;">Sube tu PDF para extraer consumo, lecturas y periodo.</p>
+<div class="container">
+    <header class="card">
+        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Recibo (Alta Precisión)</h1>
+        <p style="color: #64748b; margin:0;">Optimizado para detectar lecturas correctas ignorando adeudos y cargos.</p>
         
-        <div class="dropzone" id="dropzone">
-            <div id="fileMeta">
-                <span style="font-size: 2rem;">📄</span><br>
-                <strong>Haz click o arrastra tu PDF aquí</strong>
+        <div class="btn-group">
+            <div class="dropzone" id="dropzone" style="flex: 1; padding: 20px;">
+                <span id="fileMeta"><strong>Click para subir PDF</strong></span>
+                <input type="file" id="pdfInput" class="hidden" accept="application/pdf" />
             </div>
-            <input type="file" id="pdfInput" class="hidden" accept="application/pdf" />
+            <button class="btn btn-main" id="analyzeBtn" disabled>Analizar PDF</button>
+            <button class="btn btn-alt" id="ocrBtn" disabled>Forzar OCR</button>
+            <button class="btn btn-alt" id="clearBtn" style="background:#ef4444;">Limpiar</button>
         </div>
 
-        <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="btn btn-primary" id="analyzeBtn" disabled>Analizar PDF</button>
-            <button class="btn btn-ghost" id="ocrBtn" disabled>Forzar OCR (Si es imagen)</button>
-            <button class="btn btn-ghost" id="clearBtn">Limpiar</button>
-        </div>
-
-        <div class="progress-container">
-            <div class="progress-bar"><div id="progressFill"></div></div>
-            <p id="statusText" style="font-size: 0.85rem; margin-top: 8px; color: #64748b;">Listo</p>
-        </div>
-    </section>
+        <div class="progress-bar"><div id="progressFill"></div></div>
+        <p id="statusText" style="font-size: 0.8rem; margin: 5px 0 0 0;">Estado: Listo</p>
+    </header>
 
     <div class="grid">
         <section class="card">
-            <h3>Datos Detectados</h3>
-            
-            <div class="result-item">
-                <span class="result-label">Consumo Total</span>
-                <span class="result-value highlight"><span id="kwhValue">—</span> <small>kWh</small></span>
-            </div>
-            
-            <div class="result-item">
-                <span class="result-label">Periodo de Facturación</span>
-                <span class="result-value" id="periodValue" style="font-size: 0.9rem;">—</span>
-            </div>
-
-            <div class="result-item">
-                <span class="result-label">Tarifa</span>
-                <span class="result-value" id="tariffValue">—</span>
-            </div>
-
-            <div class="result-item">
-                <span class="result-label">Lectura Actual</span>
-                <span class="result-value" id="currReadValue">—</span>
-            </div>
-
-            <div class="result-item">
-                <span class="result-label">Lectura Anterior</span>
-                <span class="result-value" id="prevReadValue">—</span>
-            </div>
-
-            <div class="result-item" style="border: none;">
-                <span class="result-label">Método de detección</span>
-                <span id="methodValue" style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px;">—</span>
-            </div>
+            <h2 style="margin-top:0;">Datos Detectados</h2>
+            <table class="res-table">
+                <tr>
+                    <td class="label">Consumo Total</td>
+                    <td class="value highlight"><span id="kwhValue">—</span> <small>kWh</small></td>
+                </tr>
+                <tr>
+                    <td class="label">Lectura Actual</td>
+                    <td class="value" id="currReadValue">—</td>
+                </tr>
+                <tr>
+                    <td class="label">Lectura Anterior</td>
+                    <td class="value" id="prevReadValue">—</td>
+                </tr>
+                <tr>
+                    <td class="label">Tarifa</td>
+                    <td class="value" id="tariffValue">—</td>
+                </tr>
+                <tr>
+                    <td class="label">Periodo</td>
+                    <td class="value" id="periodValue" style="font-size: 0.9rem;">—</td>
+                </tr>
+                <tr>
+                    <td class="label">Método</td>
+                    <td class="value"><small id="methodValue" style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:10px;">—</small></td>
+                </tr>
+            </table>
         </section>
 
         <section class="card">
-            <h3>Vista Previa del Recibo</h3>
+            <h2 style="margin-top:0;">Vista Previa</h2>
             <canvas id="pdfCanvas"></canvas>
         </section>
     </div>
 
-    <details class="card">
-        <summary>Ver Texto Extraído (Consola de Diagnóstico)</summary>
-        <div style="margin-top: 15px;">
-            <h4 style="margin-bottom: 5px;">Texto Nativo PDF:</h4>
-            <pre id="extractedBox">Esperando análisis...</pre>
-            <h4 style="margin-bottom: 5px;">Texto procesado por OCR:</h4>
-            <pre id="ocrBox">Esperando análisis...</pre>
+    <details style="margin-top:20px;">
+        <summary style="cursor:pointer; color: var(--primary); font-weight:bold;">Ver diagnóstico técnico (Texto extraído)</summary>
+        <div class="card" style="margin-top:10px;">
+            <h4>Texto detectado por PDF:</h4>
+            <pre id="extractedBox">Sin datos</pre>
+            <h4>Texto detectado por OCR:</h4>
+            <pre id="ocrBox">Sin datos</pre>
         </div>
     </details>
 
-    <footer style="text-align: center; margin-top: 30px; color: #94a3b8; font-size: 0.8rem;">
-        Desarrollado para análisis de recibos CFE • Wendy y Rigoberto Martin
+    <footer style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;">
+        Elaborado por Wendy y Rigoberto Martin
     </footer>
-</main>
+</div>
 
 <script src="script.js"></script>
+
 </body>
 </html>
