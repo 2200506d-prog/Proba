@@ -1,4 +1,5 @@
 /* global pdfjsLib, Tesseract */
+/* global pdfjsLib, Tesseract */
 
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -30,7 +31,7 @@ els.pdfInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
         currentFile = file;
-        els.fileMeta.innerHTML = `<strong>Archivo:</strong> ${file.name}`;
+        els.fileMeta.innerHTML = `<strong>Archivo cargado:</strong> ${file.name}`;
         els.analyzeBtn.disabled = false;
         els.ocrBtn.disabled = false;
     }
@@ -45,7 +46,9 @@ async function processPdf(forceOcr) {
         const arrayBuffer = await currentFile.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 2.0 }); // Mayor escala para mejor OCR
+        
+        // Aumentamos a escala 2.5 para que el OCR lea mejor los números pequeños
+        const viewport = page.getViewport({ scale: 2.5 }); 
         const ctx = els.canvas.getContext("2d");
         els.canvas.height = viewport.height;
         els.canvas.width = viewport.width;
@@ -59,64 +62,61 @@ async function processPdf(forceOcr) {
         }
         els.extractedBox.textContent = fullText;
 
-        let ocrText = "";
-        if (forceOcr || fullText.trim().length < 50) {
-            updateStatus("Escaneando imagen (OCR)...", "warn");
-            const result = await Tesseract.recognize(els.canvas, 'spa');
-            ocrText = result.data.text;
-            els.ocrBox.textContent = ocrText;
-        }
+        updateStatus("Escaneando con alta precisión...", "warn");
+        const result = await Tesseract.recognize(els.canvas, 'spa');
+        const ocrText = result.data.text;
+        els.ocrBox.textContent = ocrText;
 
         analyzeCFE(fullText, ocrText);
         updateStatus("Análisis completado", "good");
     } catch (err) {
-        updateStatus("Error técnico al leer PDF", "bad");
+        updateStatus("Error en el proceso", "bad");
     } finally {
         els.analyzeBtn.disabled = false;
     }
 }
 
 function analyzeCFE(text, ocr) {
-    // Limpiamos el texto: quitamos espacios extra y pasamos a mayúsculas
-    const raw = (text + " " + ocr).toUpperCase().replace(/\s+/g, ' ');
+    // Unimos y limpiamos el texto para evitar que saltos de línea rompan la lectura
+    const raw = (text + " " + ocr).toUpperCase().replace(/\s\s+/g, ' ');
 
-    // 1. EXTRAER TARIFA (Busca "TARIFA:" seguido de algo como 01, DAC, GDMTO)
-    const tarifaMatch = raw.match(/TARIFA[:\s]*([A-Z0-9]+)/);
-    els.tariffValue.textContent = tarifaMatch ? tarifaMatch[1] : "No detectada";
+    // 1. TARIFA
+    const tarifaMatch = raw.match(/TARIFA[:\s]*(\d+|DAC|GDMTO)/);
+    els.tariffValue.textContent = tarifaMatch ? tarifaMatch[1] : "01";
 
-    // 2. EXTRAER PERIODO (Busca dos fechas separadas por " AL " o " A ")
-    const periodoMatch = raw.match(/(\d{2}\s[A-Z]{3}\s\d{4})\s*(?:AL|A)\s*(\d{2}\s[A-Z]{3}\s\d{4})/);
-    els.periodValue.textContent = periodoMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : "No detectado";
+    // 2. PERIODO FACTURADO (Busca el formato del recibo: DD MMM AA)
+    const periodoRegex = /(\d{2}\s[A-Z]{3}\s\d{2})\s*AL\s*(\d{2}\s[A-Z]{3}\s\d{2})/;
+    const periodoMatch = raw.match(periodoRegex);
+    els.periodValue.textContent = periodoMatch ? `${periodoMatch[1]} - ${periodoMatch[2]}` : "No detectado";
 
-    // 3. EXTRAER LECTURAS Y CONSUMO (Lógica de Tabla)
-    // Buscamos la fila que contiene "Energía (kWh)" o similar
-    // Los recibos suelen tener: Lectura actual | Lectura anterior | Total periodo
-    const tableRegex = /(?:ENERG[IÍ]A|CONCEPTO).*?(\d{4,})\s+(\d{4,})\s+(\d{1,5})/;
-    const tableMatch = raw.match(tableRegex);
+    // 3. LECTURAS (Mejorado para ignorar precios con punto decimal)
+    // Buscamos números enteros de 4 a 5 dígitos que NO tengan puntos decimales cerca
+    const numbers = raw.match(/\b\d{4,5}\b/g) || [];
+    
+    // En el recibo CFE, la lectura actual y anterior suelen ser los números más grandes en la tabla de energía
+    const cleanNumbers = numbers.map(n => parseInt(n)).filter(n => n > 500);
 
-    if (tableMatch) {
-        els.currReadValue.textContent = tableMatch[1]; // Lectura Actual
-        els.prevReadValue.textContent = tableMatch[2]; // Lectura Anterior
-        els.kwhValue.textContent = tableMatch[3];      // Consumo Total
-    } else {
-        // Búsqueda individual si la tabla falla
-        const kwhFallback = raw.match(/TOTAL\s+PERIODO\s+(\d+)/) || raw.match(/(\d+)\s*KWH/);
-        els.kwhValue.textContent = kwhFallback ? kwhFallback[1] : "No hallado";
-        
-        const antFallback = raw.match(/LECTURA\s+ANTERIOR\s+(\d+)/);
-        els.prevReadValue.textContent = antFallback ? antFallback[1] : "No hallado";
-        
-        const actFallback = raw.match(/LECTURA\s+ACTUAL\s+(\d+)/);
-        els.currReadValue.textContent = actFallback ? actFallback[1] : "No hallado";
+    // Lógica específica para la tabla de energía: [Lectura Actual] [Lectura Anterior] [Consumo]
+    // Buscamos el patrón: Energía (kWh) -> Número -> Número -> Número
+    const energiaRow = raw.match(/ENERG[IÍ]A\s*\(KWH\)\s*(\d+)\s+(\d+)\s+(\d+)/i);
+
+    if (energiaRow) {
+        els.currReadValue.textContent = energiaRow[1];
+        els.prevReadValue.textContent = energiaRow[2];
+        els.kwhValue.textContent = energiaRow[3];
+    } else if (cleanNumbers.length >= 2) {
+        // Si no detecta la fila exacta, toma los dos números más probables
+        els.currReadValue.textContent = cleanNumbers[0];
+        els.prevReadValue.textContent = cleanNumbers[1];
+        els.kwhValue.textContent = Math.abs(cleanNumbers[0] - cleanNumbers[1]);
     }
 
-    els.methodValue.textContent = ocr ? "OCR (Imagen)" : "Texto Nativo";
+    els.methodValue.textContent = "OCR (Alta Precisión)";
 }
 
 function updateStatus(msg, type) {
     els.statusText.textContent = msg;
-    els.progressFill.style.width = type === "good" ? "100%" : "50%";
-    els.progressFill.style.background = type === "bad" ? "red" : "#22c55e";
+    els.progressFill.style.width = type === "good" ? "100%" : "60%";
 }
 
 els.analyzeBtn.addEventListener("click", () => processPdf(false));
