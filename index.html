@@ -3,214 +3,209 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CFE · Calculadora de consumo</title>
+    <title>CFE · Analizador de Recibo</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        :root { --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; }
-        body { font-family: system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .app { max-width: 900px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .dropzone { border: 2px dashed #ccc; padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-        .dropzone:hover { border-color: var(--good); background: #f9fff9; }
+        :root { 
+            --good: #22c55e; 
+            --warn: #f59e0b; 
+            --bad: #ef4444; 
+            --primary: #2563eb;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #f0f2f5; 
+            margin: 0; 
+            padding: 20px; 
+            color: #333;
+        }
+        
+        .app { max-width: 1000px; margin: 0 auto; }
+        
+        .card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); 
+            margin-bottom: 20px; 
+        }
+
+        h1 { margin-top: 0; color: #1a1a1a; font-size: 1.5rem; }
+        
+        .dropzone { 
+            border: 2px dashed #cbd5e1; 
+            padding: 40px; 
+            text-align: center; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        
+        .dropzone:hover { 
+            border-color: var(--primary); 
+            background: #eff6ff; 
+        }
+
         .hidden { display: none; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; background: #2563eb; color: white; }
-        .btn:disabled { background: #ccc; cursor: not-allowed; }
-        .btn.ghost { background: transparent; border: 1px solid #ccc; color: #333; margin-left: 5px; }
-        .progress-bar { background: #eee; height: 10px; border-radius: 5px; margin-top: 10px; overflow: hidden; }
-        #progressFill { background: var(--good); width: 0%; height: 100%; transition: 0.3s; }
-        #pdfCanvas { max-width: 100%; height: auto; border: 1px solid #ddd; margin-top: 10px; }
-        .result-val { font-size: 1.5rem; font-weight: bold; color: #1a1a1a; }
-        pre { background: #f4f4f4; padding: 10px; font-size: 11px; white-space: pre-wrap; max-height: 150px; overflow: auto; }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+        }
+        
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+        .btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            transition: opacity 0.2s;
+        }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-ghost { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .progress-container { margin-top: 20px; }
+        .progress-bar { 
+            background: #e2e8f0; 
+            height: 8px; 
+            border-radius: 4px; 
+            overflow: hidden; 
+        }
+        
+        #progressFill { 
+            background: var(--good); 
+            width: 0%; 
+            height: 100%; 
+            transition: width 0.4s ease; 
+        }
+
+        .result-item { 
+            padding: 12px 0; 
+            border-bottom: 1px solid #f1f5f9; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        
+        .result-label { color: #64748b; font-size: 0.9rem; }
+        .result-value { font-weight: 700; font-size: 1.1rem; color: #1e293b; }
+        .highlight { color: var(--primary); font-size: 1.4rem; }
+
+        #pdfCanvas { 
+            width: 100%; 
+            height: auto; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 4px; 
+            margin-top: 10px;
+        }
+
+        pre { 
+            background: #1e293b; 
+            color: #cbd5e1; 
+            padding: 15px; 
+            border-radius: 6px; 
+            font-size: 11px; 
+            white-space: pre-wrap; 
+            max-height: 200px; 
+            overflow-y: auto; 
+        }
+        
+        details summary { cursor: pointer; color: var(--primary); font-weight: 600; }
     </style>
 </head>
 <body>
 
 <main class="app">
-    <div class="card">
+    <section class="card">
         <h1>CFE · Analizador de Recibo</h1>
-        <p>Sube tu PDF para extraer el consumo automáticamente.</p>
+        <p style="color: #64748b;">Sube tu PDF para extraer consumo, lecturas y periodo.</p>
         
         <div class="dropzone" id="dropzone">
-            <div id="fileMeta"><strong>Haz click aquí o arrastra tu PDF</strong></div>
+            <div id="fileMeta">
+                <span style="font-size: 2rem;">📄</span><br>
+                <strong>Haz click o arrastra tu PDF aquí</strong>
+            </div>
             <input type="file" id="pdfInput" class="hidden" accept="application/pdf" />
         </div>
 
-        <div style="margin-top: 15px;">
-            <button class="btn" id="analyzeBtn" disabled>Analizar PDF</button>
-            <button class="btn ghost" id="ocrBtn" disabled>Forzar OCR (Imagen)</button>
-            <button class="btn ghost" id="clearBtn">Limpiar</button>
+        <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="analyzeBtn" disabled>Analizar PDF</button>
+            <button class="btn btn-ghost" id="ocrBtn" disabled>Forzar OCR (Si es imagen)</button>
+            <button class="btn btn-ghost" id="clearBtn">Limpiar</button>
         </div>
 
-        <div class="progress-bar"><div id="progressFill"></div></div>
-        <div id="statusText" style="font-size: 0.9rem; margin-top: 5px; color: #666;">Listo</div>
-    </div>
+        <div class="progress-container">
+            <div class="progress-bar"><div id="progressFill"></div></div>
+            <p id="statusText" style="font-size: 0.85rem; margin-top: 8px; color: #64748b;">Listo</p>
+        </div>
+    </section>
 
     <div class="grid">
-        <div class="card">
+        <section class="card">
             <h3>Datos Detectados</h3>
-            <p>Consumo: <span id="kwhValue" class="result-val">—</span> kWh</p>
-            <p>Periodo: <span id="periodValue">—</span></p>
-            <p>Tarifa: <span id="tariffValue">—</span></p>
-            <hr>
-            <p>Lectura Anterior: <span id="prevReadValue">—</span></p>
-            <p>Lectura Actual: <span id="currReadValue">—</span></p>
-            <p><small>Método: <span id="methodValue">—</span></small></p>
-        </div>
+            
+            <div class="result-item">
+                <span class="result-label">Consumo Total</span>
+                <span class="result-value highlight"><span id="kwhValue">—</span> <small>kWh</small></span>
+            </div>
+            
+            <div class="result-item">
+                <span class="result-label">Periodo de Facturación</span>
+                <span class="result-value" id="periodValue" style="font-size: 0.9rem;">—</span>
+            </div>
 
-        <div class="card">
-            <h3>Vista Previa</h3>
+            <div class="result-item">
+                <span class="result-label">Tarifa</span>
+                <span class="result-value" id="tariffValue">—</span>
+            </div>
+
+            <div class="result-item">
+                <span class="result-label">Lectura Actual</span>
+                <span class="result-value" id="currReadValue">—</span>
+            </div>
+
+            <div class="result-item">
+                <span class="result-label">Lectura Anterior</span>
+                <span class="result-value" id="prevReadValue">—</span>
+            </div>
+
+            <div class="result-item" style="border: none;">
+                <span class="result-label">Método de detección</span>
+                <span id="methodValue" style="font-size: 0.8rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px;">—</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3>Vista Previa del Recibo</h3>
             <canvas id="pdfCanvas"></canvas>
-        </div>
+        </section>
     </div>
 
     <details class="card">
-        <summary>Ver texto extraído (Diagnóstico)</summary>
-        <h4>Texto del PDF:</h4>
-        <pre id="extractedBox">—</pre>
-        <h4>Texto OCR:</h4>
-        <pre id="ocrBox">—</pre>
+        <summary>Ver Texto Extraído (Consola de Diagnóstico)</summary>
+        <div style="margin-top: 15px;">
+            <h4 style="margin-bottom: 5px;">Texto Nativo PDF:</h4>
+            <pre id="extractedBox">Esperando análisis...</pre>
+            <h4 style="margin-bottom: 5px;">Texto procesado por OCR:</h4>
+            <pre id="ocrBox">Esperando análisis...</pre>
+        </div>
     </details>
 
-    <p style="text-align: center; color: #888; font-size: 0.8rem;">Elaborado por Wendy y Rigoberto Martin</p>
+    <footer style="text-align: center; margin-top: 30px; color: #94a3b8; font-size: 0.8rem;">
+        Desarrollado para análisis de recibos CFE • Wendy y Rigoberto Martin
+    </footer>
 </main>
 
-<script>
-/* CONFIGURACIÓN PDF.JS */
-const pdfjsLib = window['pdfjs-dist/build/pdf'];
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-/* ELEMENTOS */
-const els = {
-    dropzone: document.getElementById("dropzone"),
-    pdfInput: document.getElementById("pdfInput"),
-    fileMeta: document.getElementById("fileMeta"),
-    analyzeBtn: document.getElementById("analyzeBtn"),
-    ocrBtn: document.getElementById("ocrBtn"),
-    clearBtn: document.getElementById("clearBtn"),
-    kwhValue: document.getElementById("kwhValue"),
-    periodValue: document.getElementById("periodValue"),
-    tariffValue: document.getElementById("tariffValue"),
-    prevReadValue: document.getElementById("prevReadValue"),
-    currReadValue: document.getElementById("currReadValue"),
-    methodValue: document.getElementById("methodValue"),
-    progressFill: document.getElementById("progressFill"),
-    statusText: document.getElementById("statusText"),
-    canvas: document.getElementById("pdfCanvas"),
-    extractedBox: document.getElementById("extractedBox"),
-    ocrBox: document.getElementById("ocrBox")
-};
-
-let currentFile = null;
-
-/* EVENTOS DE CARGA */
-els.dropzone.addEventListener("click", () => els.pdfInput.click());
-
-els.pdfInput.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (file && file.type === "application/pdf") {
-        currentFile = file;
-        els.fileMeta.innerHTML = `<strong>Archivo cargado:</strong> ${file.name}`;
-        els.analyzeBtn.disabled = false;
-        els.ocrBtn.disabled = false;
-        updateStatus("Archivo listo para analizar", "good");
-    } else {
-        alert("Por favor sube un archivo PDF válido.");
-    }
-});
-
-els.clearBtn.addEventListener("click", () => location.reload());
-
-els.analyzeBtn.addEventListener("click", () => processPdf(false));
-els.ocrBtn.addEventListener("click", () => processPdf(true));
-
-/* FUNCIONES PRINCIPALES */
-async function processPdf(forceOcr) {
-    try {
-        updateStatus("Leyendo PDF...", "warn");
-        els.analyzeBtn.disabled = true;
-        
-        const arrayBuffer = await currentFile.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        
-        // 1. Renderizar primera página
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const ctx = els.canvas.getContext("2d");
-        els.canvas.height = viewport.height;
-        els.canvas.width = viewport.width;
-        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-
-        // 2. Extraer Texto
-        updateStatus("Extrayendo texto...", "warn");
-        let fullText = "";
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const p = await pdf.getPage(i);
-            const content = await p.getTextContent();
-            fullText += content.items.map(item => item.str).join(" ") + "\n";
-        }
-        els.extractedBox.textContent = fullText;
-
-        let ocrText = "";
-        if (forceOcr || fullText.trim().length < 20) {
-            updateStatus("Iniciando OCR (esto tarda unos segundos)...", "warn");
-            const result = await Tesseract.recognize(els.canvas, 'spa');
-            ocrText = result.data.text;
-            els.ocrBox.textContent = ocrText;
-        }
-
-        analyzeContent(fullText, ocrText);
-        updateStatus("Análisis completado", "good");
-        setProgress(100);
-
-    } catch (err) {
-        console.error(err);
-        updateStatus("Error al procesar el PDF", "bad");
-    } finally {
-        els.analyzeBtn.disabled = false;
-    }
-}
-
-function analyzeContent(text, ocr) {
-    const combined = (text + " " + ocr).toUpperCase();
-    
-    // Buscar kWh (Busca números antes de la palabra KWH)
-    const kwhMatch = combined.match(/([\d,.]+)\s*KWH/) || combined.match(/TOTAL\s+PERIODO\s+([\d,.]+)/);
-    const kwh = kwhMatch ? kwhMatch[1] : "No hallado";
-
-    // Buscar Lecturas
-    const lectAnt = combined.match(/ANTERIOR\s+([\d,.]+)/);
-    const lectAct = combined.match(/ACTUAL\s+([\d,.]+)/);
-
-    // Buscar Tarifa
-    const tarifa = combined.match(/TARIFA[:\s]+([A-Z0-9]+)/);
-    
-    // Buscar Periodo
-    const periodo = combined.match(/\d{2}\s[A-Z]{3}\s\d{4}\sA\s\d{2}\s[A-Z]{3}\s\d{4}/);
-
-    // Pintar resultados
-    els.kwhValue.textContent = kwh;
-    els.prevReadValue.textContent = lectAnt ? lectAnt[1] : "—";
-    els.currReadValue.textContent = lectAct ? lectAct[1] : "—";
-    els.tariffValue.textContent = tarifa ? tarifa[1] : "—";
-    els.periodValue.textContent = periodo ? periodo[0] : "No detectado";
-    els.methodValue.textContent = ocr ? "OCR (Imagen)" : "Texto Nativo";
-}
-
-function updateStatus(msg, type) {
-    els.statusText.textContent = msg;
-    els.statusText.style.color = type === "bad" ? "red" : "black";
-    if (type === "warn") setProgress(50);
-}
-
-function setProgress(val) {
-    els.progressFill.style.width = val + "%";
-}
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
