@@ -1,6 +1,5 @@
 /* global pdfjsLib, Tesseract */
 
-// 1. CONFIGURACIÓN CRÍTICA: Se cambió la versión a la 3.11.174 para mayor compatibilidad
 const pdfjsLib = window['pdfjs-dist/build/pdf'];
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -26,11 +25,7 @@ const els = {
 
 let currentFile = null;
 
-// 2. EVENTOS DE SELECCIÓN (Arreglado el problema del botón)
-els.dropzone.addEventListener("click", () => {
-    els.pdfInput.click(); // Esto fuerza la apertura del selector de archivos
-});
-
+els.dropzone.addEventListener("click", () => els.pdfInput.click());
 els.pdfInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
@@ -38,31 +33,24 @@ els.pdfInput.addEventListener("change", (e) => {
         els.fileMeta.innerHTML = `<strong>Archivo:</strong> ${file.name}`;
         els.analyzeBtn.disabled = false;
         els.ocrBtn.disabled = false;
-        els.statusText.textContent = "Archivo cargado. Haz click en Analizar.";
     }
 });
 
-// 3. PROCESAMIENTO
 async function processPdf(forceOcr) {
     if (!currentFile) return;
-    
     try {
         els.analyzeBtn.disabled = true;
-        els.statusText.textContent = "Abriendo PDF...";
+        updateStatus("Procesando documento...", "warn");
         
         const arrayBuffer = await currentFile.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        const pdf = await loadingTask.promise;
-        
-        // Renderizar primera página para vista previa y OCR
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: 2.0 }); // Mayor escala para mejor OCR
         const ctx = els.canvas.getContext("2d");
         els.canvas.height = viewport.height;
         els.canvas.width = viewport.width;
         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-        // Extraer texto nativo
         let fullText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
             const p = await pdf.getPage(i);
@@ -72,40 +60,63 @@ async function processPdf(forceOcr) {
         els.extractedBox.textContent = fullText;
 
         let ocrText = "";
-        if (forceOcr || fullText.trim().length < 20) {
-            els.statusText.textContent = "Iniciando OCR...";
+        if (forceOcr || fullText.trim().length < 50) {
+            updateStatus("Escaneando imagen (OCR)...", "warn");
             const result = await Tesseract.recognize(els.canvas, 'spa');
             ocrText = result.data.text;
             els.ocrBox.textContent = ocrText;
         }
 
-        // Lógica de búsqueda de datos
-        analyzeContent(fullText, ocrText);
-        els.statusText.textContent = "¡Completado!";
-        els.progressFill.style.width = "100%";
-
+        analyzeCFE(fullText, ocrText);
+        updateStatus("Análisis completado", "good");
     } catch (err) {
-        console.error(err);
-        els.statusText.textContent = "Error al leer PDF.";
+        updateStatus("Error técnico al leer PDF", "bad");
     } finally {
         els.analyzeBtn.disabled = false;
     }
 }
 
-function analyzeContent(text, ocr) {
-    const combined = (text + " " + ocr).toUpperCase();
-    
-    // RegEx mejoradas para CFE
-    const kwhMatch = combined.match(/([\d,.]+)\s*KWH/) || combined.match(/TOTAL\s+PERIODO\s+([\d,.]+)/);
-    const lectAnt = combined.match(/ANTERIOR\s+([\d,.]+)/);
-    const lectAct = combined.match(/ACTUAL\s+([\d,.]+)/);
-    const tarifa = combined.match(/TARIFA[:\s]+([A-Z0-9]+)/);
+function analyzeCFE(text, ocr) {
+    // Limpiamos el texto: quitamos espacios extra y pasamos a mayúsculas
+    const raw = (text + " " + ocr).toUpperCase().replace(/\s+/g, ' ');
 
-    els.kwhValue.textContent = kwhMatch ? kwhMatch[1] : "No hallado";
-    els.prevReadValue.textContent = lectAnt ? lectAnt[1] : "—";
-    els.currReadValue.textContent = lectAct ? lectAct[1] : "—";
-    els.tariffValue.textContent = tarifa ? tarifa[1] : "—";
+    // 1. EXTRAER TARIFA (Busca "TARIFA:" seguido de algo como 01, DAC, GDMTO)
+    const tarifaMatch = raw.match(/TARIFA[:\s]*([A-Z0-9]+)/);
+    els.tariffValue.textContent = tarifaMatch ? tarifaMatch[1] : "No detectada";
+
+    // 2. EXTRAER PERIODO (Busca dos fechas separadas por " AL " o " A ")
+    const periodoMatch = raw.match(/(\d{2}\s[A-Z]{3}\s\d{4})\s*(?:AL|A)\s*(\d{2}\s[A-Z]{3}\s\d{4})/);
+    els.periodValue.textContent = periodoMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : "No detectado";
+
+    // 3. EXTRAER LECTURAS Y CONSUMO (Lógica de Tabla)
+    // Buscamos la fila que contiene "Energía (kWh)" o similar
+    // Los recibos suelen tener: Lectura actual | Lectura anterior | Total periodo
+    const tableRegex = /(?:ENERG[IÍ]A|CONCEPTO).*?(\d{4,})\s+(\d{4,})\s+(\d{1,5})/;
+    const tableMatch = raw.match(tableRegex);
+
+    if (tableMatch) {
+        els.currReadValue.textContent = tableMatch[1]; // Lectura Actual
+        els.prevReadValue.textContent = tableMatch[2]; // Lectura Anterior
+        els.kwhValue.textContent = tableMatch[3];      // Consumo Total
+    } else {
+        // Búsqueda individual si la tabla falla
+        const kwhFallback = raw.match(/TOTAL\s+PERIODO\s+(\d+)/) || raw.match(/(\d+)\s*KWH/);
+        els.kwhValue.textContent = kwhFallback ? kwhFallback[1] : "No hallado";
+        
+        const antFallback = raw.match(/LECTURA\s+ANTERIOR\s+(\d+)/);
+        els.prevReadValue.textContent = antFallback ? antFallback[1] : "No hallado";
+        
+        const actFallback = raw.match(/LECTURA\s+ACTUAL\s+(\d+)/);
+        els.currReadValue.textContent = actFallback ? actFallback[1] : "No hallado";
+    }
+
     els.methodValue.textContent = ocr ? "OCR (Imagen)" : "Texto Nativo";
+}
+
+function updateStatus(msg, type) {
+    els.statusText.textContent = msg;
+    els.progressFill.style.width = type === "good" ? "100%" : "50%";
+    els.progressFill.style.background = type === "bad" ? "red" : "#22c55e";
 }
 
 els.analyzeBtn.addEventListener("click", () => processPdf(false));
