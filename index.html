@@ -9,108 +9,36 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        :root { 
-            --primary: #2563eb;
-            --success: #22c55e;
-            --text-main: #1e293b;
-            --bg-body: #f1f5f9;
-        }
-        
-        body { 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            background: var(--bg-body); 
-            margin: 0; 
-            padding: 20px; 
-            color: var(--text-main);
-        }
-        
+        :root { --primary: #2563eb; --success: #22c55e; --text-main: #1e293b; --bg-body: #f1f5f9; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-body); margin: 0; padding: 20px; color: var(--text-main); }
         .container { max-width: 1100px; margin: 0 auto; }
-        
-        .card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
-            margin-bottom: 20px; 
-        }
-
-        .dropzone { 
-            border: 2px dashed #cbd5e1; 
-            padding: 40px; 
-            text-align: center; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            background: #f8fafc;
-            transition: 0.3s;
-        }
-        
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .dropzone { border: 2px dashed #cbd5e1; padding: 40px; text-align: center; border-radius: 10px; cursor: pointer; background: #f8fafc; transition: 0.3s; }
         .dropzone:hover { border-color: var(--primary); background: #eff6ff; }
-
         .btn-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
-        
-        .btn { 
-            padding: 12px 24px; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 14px;
-        }
-        
+        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
         .btn-main { background: var(--primary); color: white; }
         .btn-alt { background: #64748b; color: white; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1.2fr; 
-            gap: 20px; 
-        }
-        
+        .grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }
         @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
-
-        /* Estilos de tabla de resultados */
         .res-table { width: 100%; border-collapse: collapse; }
         .res-table td { padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
         .label { color: #64748b; font-size: 0.9rem; }
         .value { text-align: right; font-weight: 800; font-size: 1.2rem; }
         .highlight { color: var(--primary); font-size: 1.6rem; }
-
-        .progress-bar { 
-            background: #e2e8f0; 
-            height: 10px; 
-            border-radius: 5px; 
-            overflow: hidden; 
-            margin-top: 10px;
-        }
-        
+        .progress-bar { background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 10px; }
         #progressFill { background: var(--success); width: 0%; height: 100%; transition: 0.5s; }
-
-        #pdfCanvas { 
-            width: 100%; 
-            border-radius: 8px; 
-            border: 1px solid #cbd5e1;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-
+        #pdfCanvas { width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .hidden { display: none; }
-        
-        pre { 
-            background: #0f172a; 
-            color: #94a3b8; 
-            padding: 15px; 
-            border-radius: 8px; 
-            font-size: 11px; 
-            overflow-x: auto; 
-            max-height: 200px;
-        }
+        pre { background: #0f172a; color: #94a3b8; padding: 15px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 200px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header class="card">
-        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Recibo (Alta Precisión)</h1>
+        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Alta Precisión</h1>
         <p style="color: #64748b; margin:0;">Optimizado para detectar lecturas correctas ignorando adeudos y cargos.</p>
         
         <div class="btn-group">
