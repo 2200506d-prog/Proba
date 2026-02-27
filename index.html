@@ -2,51 +2,110 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <title>CFE Analizador V2</title>
+    <title>Analizador Profesional CFE</title>
+
+    <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <!-- Tesseract -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
-        .dropzone { border: 2px dashed #ccc; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .val { font-weight: bold; color: #2563eb; font-size: 1.2em; }
-        #pdfCanvas { width: 100%; border: 1px solid #ddd; }
-        .progress { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 10px 0; }
-        #progressFill { height: 100%; background: #22c55e; width: 0%; transition: 0.3s; }
+        body {
+            font-family: Arial;
+            background: #f4f6f9;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .dropzone {
+            border: 2px dashed #bbb;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .val {
+            font-weight: bold;
+            color: #2563eb;
+            font-size: 1.2em;
+        }
+
+        button {
+            padding: 8px 14px;
+            margin-right: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
     </style>
 </head>
-<body>
-    <div class="card">
-        <h2>Analizador de Recibo CFE</h2>
-        <div class="dropzone" id="dropzone">
-            <span id="fileMeta">Arrastra tu recibo aquí o haz clic</span>
-            <input type="file" id="pdfInput" style="display:none" accept="application/pdf" />
-        </div>
-        <button id="analyzeBtn" disabled>Analizar Recibo</button>
-        <button id="ocrBtn" disabled>Reintentar con OCR</button>
-        <button id="clearBtn">Limpiar</button>
-        
-        <div class="progress"><div id="progressFill"></div></div>
-        <p id="statusText">Listo</p>
 
-        <div class="grid">
-            <div>
-                <h3>Datos Extraídos</h3>
-                <p>Consumo Total: <span id="kwhValue" class="val">—</span> kWh</p>
-                <p>Lectura Actual: <span id="currReadValue" class="val">—</span></p>
-                <p>Lectura Anterior: <span id="prevReadValue" class="val">—</span></p>
-                <p>Periodo: <span id="periodValue" class="val">—</span></p>
-                <p>Tarifa: <span id="tariffValue" class="val">—</span></p>
-                <p><small>Método: <span id="methodValue">—</span></small></p>
-            </div>
-            <div>
-                <h3>Vista Previa</h3>
-                <canvas id="pdfCanvas"></canvas>
-            </div>
-        </div>
+<body>
+
+<div class="card">
+
+    <h2>Analizador Profesional de Recibo CFE</h2>
+
+    <div class="dropzone" id="dropzone">
+        <span id="fileMeta">Haz clic para cargar tu recibo PDF</span>
+        <input type="file" id="pdfInput" hidden accept="application/pdf" />
     </div>
-    <script src="script.js"></script>
+
+    <button id="analyzeBtn" disabled>Analizar</button>
+    <button id="clearBtn">Limpiar</button>
+
+    <hr>
+
+    <div class="grid">
+
+        <div>
+            <h3>Datos Extraídos</h3>
+            <p>Total a pagar: $ <span id="totalValue" class="val">—</span></p>
+            <p>Consumo actual: <span id="kwhValue" class="val">—</span> kWh</p>
+            <p>Lectura actual: <span id="currReadValue" class="val">—</span></p>
+            <p>Lectura anterior: <span id="prevReadValue" class="val">—</span></p>
+            <p>Periodo: <span id="periodValue" class="val">—</span></p>
+            <p>Tarifa: <span id="tariffValue" class="val">—</span></p>
+        </div>
+
+        <div>
+            <h3>Historial de Consumo</h3>
+            <canvas id="historyChart"></canvas>
+        </div>
+
+    </div>
+
+    <hr>
+    <h3>Vista PDF</h3>
+    <canvas id="pdfCanvas"></canvas>
+
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
-
