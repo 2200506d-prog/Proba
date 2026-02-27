@@ -23,23 +23,24 @@
         .grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }
         @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
         .res-table { width: 100%; border-collapse: collapse; }
-        .res-table td { padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .res-table td { padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
         .label { color: #64748b; font-size: 0.9rem; }
-        .value { text-align: right; font-weight: 800; font-size: 1.2rem; }
-        .highlight { color: var(--primary); font-size: 1.6rem; }
+        .value { text-align: right; font-weight: 800; font-size: 1.1rem; }
+        .highlight { color: var(--primary); font-size: 1.4rem; }
         .progress-bar { background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 10px; }
         #progressFill { background: var(--success); width: 0%; height: 100%; transition: 0.5s; }
         #pdfCanvas { width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .hidden { display: none; }
         pre { background: #0f172a; color: #94a3b8; padding: 15px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 200px; }
+        .finance-row { background: #f8fafc; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header class="card">
-        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Alta Precisión</h1>
-        <p style="color: #64748b; margin:0;">Optimizado para detectar lecturas correctas ignorando adeudos y cargos.</p>
+        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Recibo</h1>
+        <p style="color: #64748b; margin:0;">Sube tu PDF para extraer el consumo automáticamente.</p>
         
         <div class="btn-group">
             <div class="dropzone" id="dropzone" style="flex: 1; padding: 20px;">
@@ -79,6 +80,32 @@
                     <td class="label">Periodo</td>
                     <td class="value" id="periodValue" style="font-size: 0.9rem;">—</td>
                 </tr>
+                
+                <tr class="finance-row">
+                    <td class="label">Energía (Subtotal)</td>
+                    <td class="value" id="energyValue">$ —</td>
+                </tr>
+                <tr class="finance-row">
+                    <td class="label">IVA 16%</td>
+                    <td class="value" id="ivaValue">$ —</td>
+                </tr>
+                <tr class="finance-row">
+                    <td class="label">DAP</td>
+                    <td class="value" id="dapValue">$ —</td>
+                </tr>
+                <tr class="finance-row">
+                    <td class="label">Adeudo Anterior</td>
+                    <td class="value" id="debtValue">$ —</td>
+                </tr>
+                <tr class="finance-row">
+                    <td class="label">Su Pago</td>
+                    <td class="value" id="paymentValue">$ —</td>
+                </tr>
+                <tr>
+                    <td class="label" style="font-weight:bold;">Total a Pagar</td>
+                    <td class="value highlight" id="totalValue">$ —</td>
+                </tr>
+                
                 <tr>
                     <td class="label">Método</td>
                     <td class="value"><small id="methodValue" style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:10px;">—</small></td>
@@ -95,10 +122,8 @@
     <details style="margin-top:20px;">
         <summary style="cursor:pointer; color: var(--primary); font-weight:bold;">Ver diagnóstico técnico (Texto extraído)</summary>
         <div class="card" style="margin-top:10px;">
-            <h4>Texto detectado por PDF:</h4>
+            <h4>Texto detectado:</h4>
             <pre id="extractedBox">Sin datos</pre>
-            <h4>Texto detectado por OCR:</h4>
-            <pre id="ocrBox">Sin datos</pre>
         </div>
     </details>
 
