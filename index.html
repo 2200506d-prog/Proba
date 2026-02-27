@@ -1,47 +1,39 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8"/>
-<title>Analizador CFE Profesional</title>
+<meta charset="utf-8">
+<title>Analizador CFE GitHub</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
 <style>
 body{font-family:Arial;background:#f4f6f9;padding:20px}
-.card{background:#fff;padding:20px;border-radius:10px;max-width:1100px;margin:auto}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.card{background:white;padding:20px;border-radius:10px;max-width:900px;margin:auto}
 .val{font-weight:bold;color:#2563eb}
 </style>
 </head>
 <body>
 
 <div class="card">
-<h2>Analizador CFE Profesional (Sin OCR)</h2>
 
-<input type="file" id="pdfInput" accept="application/pdf"/>
+<h2>Analizador CFE (GitHub Pages)</h2>
+
+<input type="file" id="pdfInput" accept="application/pdf">
 <button id="analyzeBtn">Analizar</button>
 
 <hr>
 
-<div class="grid">
-<div>
 <p>Total: $ <span id="totalValue" class="val">—</span></p>
 <p>Consumo: <span id="kwhValue" class="val">—</span> kWh</p>
 <p>Lectura actual: <span id="currReadValue" class="val">—</span></p>
 <p>Lectura anterior: <span id="prevReadValue" class="val">—</span></p>
 <p>Periodo: <span id="periodValue" class="val">—</span></p>
 <p>Tarifa: <span id="tariffValue" class="val">—</span></p>
-</div>
 
-<div>
-<canvas id="historyChart"></canvas>
-</div>
-</div>
+<pre id="debug"></pre>
 
 </div>
 
-<script src="script_noocr.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
-
