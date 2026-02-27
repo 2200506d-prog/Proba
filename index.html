@@ -1,111 +1,50 @@
 <!doctype html>
 <html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <title>Analizador Profesional CFE</title>
+<meta charset="utf-8"/>
+<title>Analizador CFE - OCR</title>
 
-    <!-- PDF.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Tesseract -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style>
-        body {
-            font-family: Arial;
-            background: #f4f6f9;
-            padding: 20px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 1100px;
-            margin: auto;
-        }
-
-        .dropzone {
-            border: 2px dashed #bbb;
-            padding: 30px;
-            text-align: center;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-
-        .val {
-            font-weight: bold;
-            color: #2563eb;
-            font-size: 1.2em;
-        }
-
-        button {
-            padding: 8px 14px;
-            margin-right: 8px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            background: #2563eb;
-            color: white;
-        }
-
-        canvas {
-            max-width: 100%;
-        }
-    </style>
+<style>
+body{font-family:Arial;background:#f4f6f9;padding:20px}
+.card{background:#fff;padding:20px;border-radius:10px;max-width:1100px;margin:auto}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.val{font-weight:bold;color:#2563eb}
+canvas{max-width:100%}
+</style>
 </head>
-
 <body>
 
 <div class="card">
+<h2>Analizador CFE (OCR)</h2>
 
-    <h2>Analizador Profesional de Recibo CFE</h2>
+<input type="file" id="pdfInput" accept="application/pdf"/>
+<button id="analyzeBtn">Analizar</button>
 
-    <div class="dropzone" id="dropzone">
-        <span id="fileMeta">Haz clic para cargar tu recibo PDF</span>
-        <input type="file" id="pdfInput" hidden accept="application/pdf" />
-    </div>
+<hr>
 
-    <button id="analyzeBtn" disabled>Analizar</button>
-    <button id="clearBtn">Limpiar</button>
-
-    <hr>
-
-    <div class="grid">
-
-        <div>
-            <h3>Datos Extraídos</h3>
-            <p>Total a pagar: $ <span id="totalValue" class="val">—</span></p>
-            <p>Consumo actual: <span id="kwhValue" class="val">—</span> kWh</p>
-            <p>Lectura actual: <span id="currReadValue" class="val">—</span></p>
-            <p>Lectura anterior: <span id="prevReadValue" class="val">—</span></p>
-            <p>Periodo: <span id="periodValue" class="val">—</span></p>
-            <p>Tarifa: <span id="tariffValue" class="val">—</span></p>
-        </div>
-
-        <div>
-            <h3>Historial de Consumo</h3>
-            <canvas id="historyChart"></canvas>
-        </div>
-
-    </div>
-
-    <hr>
-    <h3>Vista PDF</h3>
-    <canvas id="pdfCanvas"></canvas>
-
+<div class="grid">
+<div>
+<p>Total: $ <span id="totalValue" class="val">—</span></p>
+<p>Consumo: <span id="kwhValue" class="val">—</span> kWh</p>
+<p>Lectura actual: <span id="currReadValue" class="val">—</span></p>
+<p>Lectura anterior: <span id="prevReadValue" class="val">—</span></p>
+<p>Periodo: <span id="periodValue" class="val">—</span></p>
+<p>Tarifa: <span id="tariffValue" class="val">—</span></p>
 </div>
 
-<script src="script.js"></script>
+<div>
+<canvas id="historyChart"></canvas>
+</div>
+</div>
+
+<hr>
+<canvas id="pdfCanvas"></canvas>
+</div>
+
+<script src="script_ocr.js"></script>
 </body>
 </html>
