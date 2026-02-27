@@ -2,10 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"/>
-<title>Analizador CFE - OCR</title>
+<title>Analizador CFE Profesional</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -13,13 +12,12 @@ body{font-family:Arial;background:#f4f6f9;padding:20px}
 .card{background:#fff;padding:20px;border-radius:10px;max-width:1100px;margin:auto}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:30px}
 .val{font-weight:bold;color:#2563eb}
-canvas{max-width:100%}
 </style>
 </head>
 <body>
 
 <div class="card">
-<h2>Analizador CFE (OCR)</h2>
+<h2>Analizador CFE Profesional (Sin OCR)</h2>
 
 <input type="file" id="pdfInput" accept="application/pdf"/>
 <button id="analyzeBtn">Analizar</button>
@@ -41,10 +39,9 @@ canvas{max-width:100%}
 </div>
 </div>
 
-<hr>
-<canvas id="pdfCanvas"></canvas>
 </div>
 
-<script src="script_ocr.js"></script>
+<script src="script_noocr.js"></script>
 </body>
 </html>
+
