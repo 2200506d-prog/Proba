@@ -46,8 +46,8 @@ async function processPdf(forceOcr) {
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
         
-        // Aumentamos a escala 2.5 para que el OCR lea mejor los números pequeños
-        const viewport = page.getViewport({ scale: 2.5 }); 
+        // Escala alta para mejorar el OCR de números pequeños
+        const viewport = page.getViewport({ scale: 3.0 }); 
         const ctx = els.canvas.getContext("2d");
         els.canvas.height = viewport.height;
         els.canvas.width = viewport.width;
@@ -62,6 +62,8 @@ async function processPdf(forceOcr) {
         els.extractedBox.textContent = fullText;
 
         updateStatus("Escaneando con alta precisión...", "warn");
+        
+        // OCR directo del canvas renderizado
         const result = await Tesseract.recognize(els.canvas, 'spa');
         const ocrText = result.data.text;
         els.ocrBox.textContent = ocrText;
@@ -70,44 +72,43 @@ async function processPdf(forceOcr) {
         updateStatus("Análisis completado", "good");
     } catch (err) {
         updateStatus("Error en el proceso", "bad");
+        console.error(err);
     } finally {
         els.analyzeBtn.disabled = false;
     }
 }
 
 function analyzeCFE(text, ocr) {
-    // Unimos y limpiamos el texto para evitar que saltos de línea rompan la lectura
+    // Unimos y limpiamos el texto
     const raw = (text + " " + ocr).toUpperCase().replace(/\s\s+/g, ' ');
 
     // 1. TARIFA
     const tarifaMatch = raw.match(/TARIFA[:\s]*(\d+|DAC|GDMTO)/);
     els.tariffValue.textContent = tarifaMatch ? tarifaMatch[1] : "01";
 
-    // 2. PERIODO FACTURADO (Busca el formato del recibo: DD MMM AA)
-    const periodoRegex = /(\d{2}\s[A-Z]{3}\s\d{2})\s*AL\s*(\d{2}\s[A-Z]{3}\s\d{2})/;
+    // 2. PERIODO FACTURADO
+    const periodoRegex = /(\d{2}\s+[A-Z]{3}\s+\d{2})\s*(?:AL|A)\s*(\d{2}\s+[A-Z]{3}\s+\d{2})/;
     const periodoMatch = raw.match(periodoRegex);
     els.periodValue.textContent = periodoMatch ? `${periodoMatch[1]} - ${periodoMatch[2]}` : "No detectado";
 
-    // 3. LECTURAS (Mejorado para ignorar precios con punto decimal)
-    // Buscamos números enteros de 4 a 5 dígitos que NO tengan puntos decimales cerca
-    const numbers = raw.match(/\b\d{4,5}\b/g) || [];
-    
-    // En el recibo CFE, la lectura actual y anterior suelen ser los números más grandes en la tabla de energía
-    const cleanNumbers = numbers.map(n => parseInt(n)).filter(n => n > 500);
-
-    // Lógica específica para la tabla de energía: [Lectura Actual] [Lectura Anterior] [Consumo]
-    // Buscamos el patrón: Energía (kWh) -> Número -> Número -> Número
-    const energiaRow = raw.match(/ENERG[IÍ]A\s*\(KWH\)\s*(\d+)\s+(\d+)\s+(\d+)/i);
+    // 3. LECTURAS Y CONSUMO (Lógica robusta para evitar decimales)
+    // Buscamos la fila de energía directamente en el texto
+    const energiaRow = raw.match(/ENERG[IÍ]A\s*\(KWH\)\s+(\d{4,5})\s+(\d{4,5})\s+(\d+)/i);
 
     if (energiaRow) {
         els.currReadValue.textContent = energiaRow[1];
         els.prevReadValue.textContent = energiaRow[2];
         els.kwhValue.textContent = energiaRow[3];
-    } else if (cleanNumbers.length >= 2) {
-        // Si no detecta la fila exacta, toma los dos números más probables
-        els.currReadValue.textContent = cleanNumbers[0];
-        els.prevReadValue.textContent = cleanNumbers[1];
-        els.kwhValue.textContent = Math.abs(cleanNumbers[0] - cleanNumbers[1]);
+    } else {
+        // Fallback: Si no detecta la fila, busca números largos ignorando puntos decimales
+        const numbers = raw.match(/\b\d{4,5}\b/g) || [];
+        const cleanNumbers = numbers.map(n => parseInt(n)).filter(n => n > 500);
+        
+        if (cleanNumbers.length >= 2) {
+            els.currReadValue.textContent = cleanNumbers[0];
+            els.prevReadValue.textContent = cleanNumbers[1];
+            els.kwhValue.textContent = Math.abs(cleanNumbers[0] - cleanNumbers[1]);
+        }
     }
 
     els.methodValue.textContent = "OCR (Alta Precisión)";
