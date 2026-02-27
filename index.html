@@ -1,138 +1,204 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CFE · Analizador de Alta Precisión</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-    <style>
-        :root { --primary: #2563eb; --success: #22c55e; --text-main: #1e293b; --bg-body: #f1f5f9; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-body); margin: 0; padding: 20px; color: var(--text-main); }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .dropzone { border: 2px dashed #cbd5e1; padding: 40px; text-align: center; border-radius: 10px; cursor: pointer; background: #f8fafc; transition: 0.3s; }
-        .dropzone:hover { border-color: var(--primary); background: #eff6ff; }
-        .btn-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
-        .btn { padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
-        .btn-main { background: var(--primary); color: white; }
-        .btn-alt { background: #64748b; color: white; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; }
-        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
-        .res-table { width: 100%; border-collapse: collapse; }
-        .res-table td { padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
-        .label { color: #64748b; font-size: 0.9rem; }
-        .value { text-align: right; font-weight: 800; font-size: 1.1rem; }
-        .highlight { color: var(--primary); font-size: 1.4rem; }
-        .progress-bar { background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        #progressFill { background: var(--success); width: 0%; height: 100%; transition: 0.5s; }
-        #pdfCanvas { width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .hidden { display: none; }
-        pre { background: #0f172a; color: #94a3b8; padding: 15px; border-radius: 8px; font-size: 11px; overflow-x: auto; max-height: 200px; }
-        .finance-row { background: #f8fafc; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lectura de Recibo de Luz CFE</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      text-align: center;
+      padding: 30px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      max-width: 900px;
+      margin: auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h1, h2, h3 { color: #2c3e50; }
+    input { margin-top: 15px; }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 90%;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #2c3e50;
+      color: white;
+    }
+    #textoDetectado {
+      text-align: left;
+      background-color: #eef;
+      padding: 10px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      margin-top: 15px;
+    }
+    #total, #costo {
+      font-weight: bold;
+      color: #16a085;
+      margin-top: 10px;
+    }
+    select {
+      margin-top: 10px;
+      padding: 5px;
+      font-size: 1rem;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Martin Rigoberto Ruiz Chavez</h1>
+    <h2>Probabilidad y Estadística</h2>
+    <h3>Factura de Consumo de Energía Eléctrica (CFE)</h3>
 
-<div class="container">
-    <header class="card">
-        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Recibo</h1>
-        <p style="color: #64748b; margin:0;">Sube tu PDF para extraer el consumo automáticamente.</p>
-        
-        <div class="btn-group">
-            <div class="dropzone" id="dropzone" style="flex: 1; padding: 20px;">
-                <span id="fileMeta"><strong>Click para subir PDF</strong></span>
-                <input type="file" id="pdfInput" class="hidden" accept="application/pdf" />
-            </div>
-            <button class="btn btn-main" id="analyzeBtn" disabled>Analizar PDF</button>
-            <button class="btn btn-alt" id="ocrBtn" disabled>Forzar OCR</button>
-            <button class="btn btn-alt" id="clearBtn" style="background:#ef4444;">Limpiar</button>
-        </div>
+    <p><strong>Sube tu recibo (imagen o PDF):</strong></p>
+    <input type="file" id="archivo" accept=".png,.jpg,.jpeg,.pdf" />
+    <p id="estado"></p>
 
-        <div class="progress-bar"><div id="progressFill"></div></div>
-        <p id="statusText" style="font-size: 0.8rem; margin: 5px 0 0 0;">Estado: Listo</p>
-    </header>
-
-    <div class="grid">
-        <section class="card">
-            <h2 style="margin-top:0;">Datos Detectados</h2>
-            <table class="res-table">
-                <tr>
-                    <td class="label">Consumo Total</td>
-                    <td class="value highlight"><span id="kwhValue">—</span> <small>kWh</small></td>
-                </tr>
-                <tr>
-                    <td class="label">Lectura Actual</td>
-                    <td class="value" id="currReadValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Lectura Anterior</td>
-                    <td class="value" id="prevReadValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Tarifa</td>
-                    <td class="value" id="tariffValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Periodo</td>
-                    <td class="value" id="periodValue" style="font-size: 0.9rem;">—</td>
-                </tr>
-                
-                <tr class="finance-row">
-                    <td class="label">Energía (Subtotal)</td>
-                    <td class="value" id="energyValue">$ —</td>
-                </tr>
-                <tr class="finance-row">
-                    <td class="label">IVA 16%</td>
-                    <td class="value" id="ivaValue">$ —</td>
-                </tr>
-                <tr class="finance-row">
-                    <td class="label">DAP</td>
-                    <td class="value" id="dapValue">$ —</td>
-                </tr>
-                <tr class="finance-row">
-                    <td class="label">Adeudo Anterior</td>
-                    <td class="value" id="debtValue">$ —</td>
-                </tr>
-                <tr class="finance-row">
-                    <td class="label">Su Pago</td>
-                    <td class="value" id="paymentValue">$ —</td>
-                </tr>
-                <tr>
-                    <td class="label" style="font-weight:bold;">Total a Pagar</td>
-                    <td class="value highlight" id="totalValue">$ —</td>
-                </tr>
-                
-                <tr>
-                    <td class="label">Método</td>
-                    <td class="value"><small id="methodValue" style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:10px;">—</small></td>
-                </tr>
-            </table>
-        </section>
-
-        <section class="card">
-            <h2 style="margin-top:0;">Vista Previa</h2>
-            <canvas id="pdfCanvas"></canvas>
-        </section>
+    <div>
+      <label for="tarifa">Selecciona tarifa estimada:</label>
+      <select id="tarifa">
+        <option value="0.87">Doméstica 1 ($0.87/kWh)</option>
+        <option value="1.20">Doméstica 1C ($1.20/kWh)</option>
+        <option value="1.50">Doméstica de Alto Consumo (DAC) ($1.50/kWh)</option>
+      </select>
     </div>
+<title> tu tarifa de consumo es la siguiente </title>
+    <div id="textoDetectado"></div>
+    <div id="tabla"></div>
+    <div id="total"></div>
+    <div id="costo"></div>
+  </div>
 
-    <details style="margin-top:20px;">
-        <summary style="cursor:pointer; color: var(--primary); font-weight:bold;">Ver diagnóstico técnico (Texto extraído)</summary>
-        <div class="card" style="margin-top:10px;">
-            <h4>Texto detectado:</h4>
-            <pre id="extractedBox">Sin datos</pre>
-        </div>
-    </details>
+  <!-- Librerías necesarias -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.2/dist/tesseract.min.js"></script>
 
-    <footer style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;">
-        Elaborado por Wendy y Rigoberto Martin
-    </footer>
-</div>
+  <script>
+    const inputArchivo = document.getElementById("archivo");
+    const estado = document.getElementById("estado");
+    const textoDetectado = document.getElementById("textoDetectado");
+    const tablaDiv = document.getElementById("tabla");
+    const totalDiv = document.getElementById("total");
+    const costoDiv = document.getElementById("costo");
+    const tarifaSelect = document.getElementById("tarifa");
 
-<script src="script.js"></script>
+    // Convierte PDF a imagen para OCR
+    async function extraerTextoDePDF(archivo) {
+      const pdfData = new Uint8Array(await archivo.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+      let texto = "";
 
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        const { data: { text } } = await Tesseract.recognize(canvas, 'spa', {
+          logger: m => console.log(m)
+        });
+        texto += text + "\n";
+      }
+      return texto;
+    }
+
+    // Lee imagen directamente
+    async function extraerTextoDeImagen(archivo) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async function () {
+          const { data: { text } } = await Tesseract.recognize(reader.result, 'spa', {
+            logger: m => console.log(m)
+          });
+          resolve(text);
+        };
+        reader.readAsDataURL(archivo);
+      });
+    }
+
+    inputArchivo.addEventListener("change", async () => {
+      const archivo = inputArchivo.files[0];
+      if (!archivo) return;
+
+      estado.textContent = "Leyendo el recibo... Esto puede tardar unos segundos ⏳";
+      textoDetectado.innerHTML = "";
+      tablaDiv.innerHTML = "";
+      totalDiv.textContent = "";
+      costoDiv.textContent = "";
+
+      let texto = "";
+
+      try {
+        if (archivo.type === "application/pdf") {
+          texto = await extraerTextoDePDF(archivo);
+        } else {
+          texto = await extraerTextoDeImagen(archivo);
+        }
+      } catch (err) {
+        estado.textContent = "Error al procesar el archivo 😕";
+        console.error(err);
+        return;
+      }
+
+      estado.textContent = "Procesamiento completo ✅";
+      textoDetectado.innerHTML = "<h4>Texto detectado:</h4>" + texto.replace(/\n/g, "<br>");
+
+      // Buscar valores de consumo
+      const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
+      const consumos = [];
+
+      for (let i = 0; i < lineas.length; i++) {
+        if (/kwh|kw h|wh|consumo/i.test(lineas[i])) {
+          const numeros = lineas[i].match(/(\d+(\.\d+)?)/g);
+          if (numeros) {
+            numeros.forEach(num => {
+              const valor = parseFloat(num);
+              if (!isNaN(valor) && valor < 20000 && valor > 0) { // filtro razonable
+                consumos.push(valor);
+              }
+            });
+          }
+        }
+      }
+
+      if (consumos.length === 0) {
+        tablaDiv.innerHTML = "<p>No se detectaron valores de consumo. Revisa que la imagen o PDF sea clara.</p>";
+        return;
+      }
+
+      // Mostrar tabla
+      let html = "<table><tr><th>Periodo</th><th>Consumo (kWh)</th></tr>";
+      consumos.forEach((valor, idx) => {
+        html += <tr><td>Periodo ${idx + 1}</td><td>${valor}</td></tr>;
+      });
+      html += "</table>";
+      tablaDiv.innerHTML = html;
+
+      // Calcular total
+      const total = consumos.reduce((a, b) => a + b, 0);
+      totalDiv.textContent = ⚡ Consumo total detectado: ${total.toFixed(2)} kWh;
+
+      // Calcular costo estimado
+      const tarifa = parseFloat(tarifaSelect.value);
+      const costo = total * tarifa;
+      costoDiv.textContent = 💰 Costo estimado: $${costo.toFixed(2)} MXN (Tarifa $${tarifa}/kWh);
+    });
+  </script>
 </body>
 </html>
+
+
