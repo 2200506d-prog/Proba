@@ -18,7 +18,9 @@ const els = {
     methodValue: document.getElementById("methodValue"),
     progressFill: document.getElementById("progressFill"),
     statusText: document.getElementById("statusText"),
-    canvas: document.getElementById("pdfCanvas")
+    canvas: document.getElementById("pdfCanvas"),
+    extractedBox: document.getElementById("extractedBox"),
+    ocrBox: document.getElementById("ocrBox")
 };
 
 let currentFile = null;
@@ -28,7 +30,7 @@ els.pdfInput.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file && file.type === "application/pdf") {
         currentFile = file;
-        els.fileMeta.innerHTML = `<strong>Archivo:</strong> ${file.name}`;
+        els.fileMeta.innerHTML = `<strong>Archivo cargado:</strong> ${file.name}`;
         els.analyzeBtn.disabled = false;
         els.ocrBtn.disabled = false;
     }
@@ -37,67 +39,78 @@ els.pdfInput.addEventListener("change", (e) => {
 async function processPdf(forceOcr) {
     if (!currentFile) return;
     try {
-        updateStatus("Procesando con alta resolución...", "warn");
         els.analyzeBtn.disabled = true;
+        updateStatus("Procesando documento...", "warn");
         
         const arrayBuffer = await currentFile.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1);
         
-        // Escala 3.0 para que el OCR no confunda el "8" con "0" o "." con ","
-        const viewport = page.getViewport({ scale: 3.0 }); 
+        // Aumentamos a escala 2.5 para que el OCR lea mejor los números pequeños
+        const viewport = page.getViewport({ scale: 2.5 }); 
         const ctx = els.canvas.getContext("2d");
         els.canvas.height = viewport.height;
         els.canvas.width = viewport.width;
         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-        updateStatus("Extrayendo y validando datos...", "warn");
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const p = await pdf.getPage(i);
+            const content = await p.getTextContent();
+            fullText += content.items.map(item => item.str).join(" ") + "\n";
+        }
+        els.extractedBox.textContent = fullText;
+
+        updateStatus("Escaneando con alta precisión...", "warn");
         const result = await Tesseract.recognize(els.canvas, 'spa');
         const ocrText = result.data.text;
+        els.ocrBox.textContent = ocrText;
 
-        analyzeCFE(ocrText);
+        analyzeCFE(fullText, ocrText);
         updateStatus("Análisis completado", "good");
     } catch (err) {
-        updateStatus("Error en el análisis", "bad");
+        updateStatus("Error en el proceso", "bad");
     } finally {
         els.analyzeBtn.disabled = false;
     }
 }
 
-function analyzeCFE(rawText) {
-    // Normalización: Quitar símbolos extraños y unificar espacios
-    const cleanText = rawText.toUpperCase().replace(/[^A-Z0-9\s\/\-]/g, ' ').replace(/\s+/g, ' ');
+function analyzeCFE(text, ocr) {
+    // Unimos y limpiamos el texto para evitar que saltos de línea rompan la lectura
+    const raw = (text + " " + ocr).toUpperCase().replace(/\s\s+/g, ' ');
 
-    // 1. EXTRAER PERIODO (Formato: DD MMM YY AL DD MMM YY)
-    // Ejemplo en tu imagen: 07 OCT 25 AL 09 DIC 25
-    const periodMatch = cleanText.match(/(\d{2}\s[A-Z]{3}\s\d{2})\s*(?:AL|A)\s*(\d{2}\s[A-Z]{3}\s\d{2})/);
-    els.periodValue.textContent = periodMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : "No detectado";
-
-    // 2. EXTRAER TARIFA
-    const tarifaMatch = cleanText.match(/TARIFA\s*([A-Z0-9]+)/);
+    // 1. TARIFA
+    const tarifaMatch = raw.match(/TARIFA[:\s]*(\d+|DAC|GDMTO)/);
     els.tariffValue.textContent = tarifaMatch ? tarifaMatch[1] : "01";
 
-    // 3. LECTURAS Y CONSUMO (Lógica Robusta)
-    // Buscamos la fila: Energía (kWh) -> Lectura Actual -> Lectura Anterior -> Total
-    // Basado en tu recibo: 03724 | 03582 | 142
-    const tableRow = cleanText.match(/ENERG\wA\s*\(KWH\)\s*(\d{4,5})\s+(\d{4,5})\s+(\d{1,4})/);
+    // 2. PERIODO FACTURADO (Busca el formato del recibo: DD MMM AA)
+    const periodoRegex = /(\d{2}\s[A-Z]{3}\s\d{2})\s*AL\s*(\d{2}\s[A-Z]{3}\s\d{2})/;
+    const periodoMatch = raw.match(periodoRegex);
+    els.periodValue.textContent = periodoMatch ? `${periodoMatch[1]} - ${periodoMatch[2]}` : "No detectado";
 
-    if (tableRow) {
-        els.currReadValue.textContent = tableRow[1];
-        els.prevReadValue.textContent = tableRow[2];
-        els.kwhValue.textContent = tableRow[3];
-    } else {
-        // Fallback: Buscar números de 4-5 dígitos que NO tengan puntos decimales cerca
-        // Esto evita capturar el 170.68
-        const possibleReads = cleanText.match(/\b\d{5}\b/g) || [];
-        if (possibleReads.length >= 2) {
-            els.currReadValue.textContent = possibleReads[0];
-            els.prevReadValue.textContent = possibleReads[1];
-            els.kwhValue.textContent = Math.abs(parseInt(possibleReads[0]) - parseInt(possibleReads[1]));
-        }
-    }
+    // 3. LECTURAS (Mejorado para ignorar precios con punto decimal)
+    // Buscamos números enteros de 4 a 5 dígitos que NO tengan puntos decimales cerca
+    const numbers = raw.match(/\b\d{4,5}\b/g) || [];
     
-    els.methodValue.textContent = "OCR Alta Precisión";
+    // En el recibo CFE, la lectura actual y anterior suelen ser los números más grandes en la tabla de energía
+    const cleanNumbers = numbers.map(n => parseInt(n)).filter(n => n > 500);
+
+    // Lógica específica para la tabla de energía: [Lectura Actual] [Lectura Anterior] [Consumo]
+    // Buscamos el patrón: Energía (kWh) -> Número -> Número -> Número
+    const energiaRow = raw.match(/ENERG[IÍ]A\s*\(KWH\)\s*(\d+)\s+(\d+)\s+(\d+)/i);
+
+    if (energiaRow) {
+        els.currReadValue.textContent = energiaRow[1];
+        els.prevReadValue.textContent = energiaRow[2];
+        els.kwhValue.textContent = energiaRow[3];
+    } else if (cleanNumbers.length >= 2) {
+        // Si no detecta la fila exacta, toma los dos números más probables
+        els.currReadValue.textContent = cleanNumbers[0];
+        els.prevReadValue.textContent = cleanNumbers[1];
+        els.kwhValue.textContent = Math.abs(cleanNumbers[0] - cleanNumbers[1]);
+    }
+
+    els.methodValue.textContent = "OCR (Alta Precisión)";
 }
 
 function updateStatus(msg, type) {
@@ -105,8 +118,6 @@ function updateStatus(msg, type) {
     els.progressFill.style.width = type === "good" ? "100%" : "60%";
 }
 
-els.analyzeBtn.addEventListener("click", () => processPdf(true));
+els.analyzeBtn.addEventListener("click", () => processPdf(false));
 els.ocrBtn.addEventListener("click", () => processPdf(true));
 els.clearBtn.addEventListener("click", () => location.reload());
-
-
