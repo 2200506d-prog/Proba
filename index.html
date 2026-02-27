@@ -2,184 +2,51 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CFE · Analizador de Alta Precisión</title>
-    
+    <title>CFE Analizador V2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
     <style>
-        :root { 
-            --primary: #2563eb;
-            --success: #22c55e;
-            --text-main: #1e293b;
-            --bg-body: #f1f5f9;
-        }
-        
-        body { 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            background: var(--bg-body); 
-            margin: 0; 
-            padding: 20px; 
-            color: var(--text-main);
-        }
-        
-        .container { max-width: 1100px; margin: 0 auto; }
-        
-        .card { 
-            background: white; 
-            padding: 25px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
-            margin-bottom: 20px; 
-        }
-
-        .dropzone { 
-            border: 2px dashed #cbd5e1; 
-            padding: 40px; 
-            text-align: center; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            background: #f8fafc;
-            transition: 0.3s;
-        }
-        
-        .dropzone:hover { border-color: var(--primary); background: #eff6ff; }
-
-        .btn-group { display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }
-        
-        .btn { 
-            padding: 12px 24px; 
-            border: none; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            font-size: 14px;
-        }
-        
-        .btn-main { background: var(--primary); color: white; }
-        .btn-alt { background: #64748b; color: white; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1.2fr; 
-            gap: 20px; 
-        }
-        
-        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }
-
-        /* Estilos de tabla de resultados */
-        .res-table { width: 100%; border-collapse: collapse; }
-        .res-table td { padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
-        .label { color: #64748b; font-size: 0.9rem; }
-        .value { text-align: right; font-weight: 800; font-size: 1.2rem; }
-        .highlight { color: var(--primary); font-size: 1.6rem; }
-
-        .progress-bar { 
-            background: #e2e8f0; 
-            height: 10px; 
-            border-radius: 5px; 
-            overflow: hidden; 
-            margin-top: 10px;
-        }
-        
-        #progressFill { background: var(--success); width: 0%; height: 100%; transition: 0.5s; }
-
-        #pdfCanvas { 
-            width: 100%; 
-            border-radius: 8px; 
-            border: 1px solid #cbd5e1;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }
-
-        .hidden { display: none; }
-        
-        pre { 
-            background: #0f172a; 
-            color: #94a3b8; 
-            padding: 15px; 
-            border-radius: 8px; 
-            font-size: 11px; 
-            overflow-x: auto; 
-            max-height: 200px;
-        }
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
+        .dropzone { border: 2px dashed #ccc; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .val { font-weight: bold; color: #2563eb; font-size: 1.2em; }
+        #pdfCanvas { width: 100%; border: 1px solid #ddd; }
+        .progress { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+        #progressFill { height: 100%; background: #22c55e; width: 0%; transition: 0.3s; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <header class="card">
-        <h1 style="margin:0 0 10px 0;">CFE · Analizador de Recibo (Alta Precisión)</h1>
-        <p style="color: #64748b; margin:0;">Optimizado para detectar lecturas correctas ignorando adeudos y cargos.</p>
+    <div class="card">
+        <h2>Analizador de Recibo CFE</h2>
+        <div class="dropzone" id="dropzone">
+            <span id="fileMeta">Arrastra tu recibo aquí o haz clic</span>
+            <input type="file" id="pdfInput" style="display:none" accept="application/pdf" />
+        </div>
+        <button id="analyzeBtn" disabled>Analizar Recibo</button>
+        <button id="ocrBtn" disabled>Reintentar con OCR</button>
+        <button id="clearBtn">Limpiar</button>
         
-        <div class="btn-group">
-            <div class="dropzone" id="dropzone" style="flex: 1; padding: 20px;">
-                <span id="fileMeta"><strong>Click para subir PDF</strong></span>
-                <input type="file" id="pdfInput" class="hidden" accept="application/pdf" />
+        <div class="progress"><div id="progressFill"></div></div>
+        <p id="statusText">Listo</p>
+
+        <div class="grid">
+            <div>
+                <h3>Datos Extraídos</h3>
+                <p>Consumo Total: <span id="kwhValue" class="val">—</span> kWh</p>
+                <p>Lectura Actual: <span id="currReadValue" class="val">—</span></p>
+                <p>Lectura Anterior: <span id="prevReadValue" class="val">—</span></p>
+                <p>Periodo: <span id="periodValue" class="val">—</span></p>
+                <p>Tarifa: <span id="tariffValue" class="val">—</span></p>
+                <p><small>Método: <span id="methodValue">—</span></small></p>
             </div>
-            <button class="btn btn-main" id="analyzeBtn" disabled>Analizar PDF</button>
-            <button class="btn btn-alt" id="ocrBtn" disabled>Forzar OCR</button>
-            <button class="btn btn-alt" id="clearBtn" style="background:#ef4444;">Limpiar</button>
+            <div>
+                <h3>Vista Previa</h3>
+                <canvas id="pdfCanvas"></canvas>
+            </div>
         </div>
-
-        <div class="progress-bar"><div id="progressFill"></div></div>
-        <p id="statusText" style="font-size: 0.8rem; margin: 5px 0 0 0;">Estado: Listo</p>
-    </header>
-
-    <div class="grid">
-        <section class="card">
-            <h2 style="margin-top:0;">Datos Detectados</h2>
-            <table class="res-table">
-                <tr>
-                    <td class="label">Consumo Total</td>
-                    <td class="value highlight"><span id="kwhValue">—</span> <small>kWh</small></td>
-                </tr>
-                <tr>
-                    <td class="label">Lectura Actual</td>
-                    <td class="value" id="currReadValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Lectura Anterior</td>
-                    <td class="value" id="prevReadValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Tarifa</td>
-                    <td class="value" id="tariffValue">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Periodo</td>
-                    <td class="value" id="periodValue" style="font-size: 0.9rem;">—</td>
-                </tr>
-                <tr>
-                    <td class="label">Método</td>
-                    <td class="value"><small id="methodValue" style="background:#dcfce7; color:#166534; padding:3px 8px; border-radius:10px;">—</small></td>
-                </tr>
-            </table>
-        </section>
-
-        <section class="card">
-            <h2 style="margin-top:0;">Vista Previa</h2>
-            <canvas id="pdfCanvas"></canvas>
-        </section>
     </div>
-
-    <details style="margin-top:20px;">
-        <summary style="cursor:pointer; color: var(--primary); font-weight:bold;">Ver diagnóstico técnico (Texto extraído)</summary>
-        <div class="card" style="margin-top:10px;">
-            <h4>Texto detectado por PDF:</h4>
-            <pre id="extractedBox">Sin datos</pre>
-            <h4>Texto detectado por OCR:</h4>
-            <pre id="ocrBox">Sin datos</pre>
-        </div>
-    </details>
-
-    <footer style="text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 20px;">
-        Elaborado por Wendy y Rigoberto Martin
-    </footer>
-</div>
-
-<script src="script.js"></script>
-
+    <script src="script.js"></script>
 </body>
 </html>
+
